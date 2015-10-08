@@ -1,5 +1,5 @@
 # tragedia
 Diatoms Tipping Points Tools    
 
-this script fits the data to a flexible model and builds the simple plots.
-library.py, this file contains the common functions used by the different scripts.
+1. library.py. library containing the common functions, including the fitting functions.  
+2. timeSeriesFitter.py. script to fit each time series individually with the purpose of manually checking the goodness of fit.  
