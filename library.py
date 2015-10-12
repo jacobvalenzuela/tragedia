@@ -1,6 +1,66 @@
-import scipy,numpy
+import scipy, numpy, sys
 from scipy.optimize import leastsq
 from scipy.stats import linregress
+
+def characteristicParameterFinder(dataStructure):
+
+    resolution = 1000
+    maxGrowthRates = []
+    uvValues = []
+    growthLags = []
+
+    for epocLabel in dataStructure:
+
+        epoc=epocLabel.split('_')[0]
+        uvValue=float(epoc)
+
+        print epocLabel,
+                
+        localTime=numpy.array(dataStructure[epocLabel][0])
+        shiftedTime=localTime-min(localTime)
+        localCells=dataStructure[epocLabel][1]
+        highResolutionTime=numpy.linspace(min(shiftedTime),max(shiftedTime),resolution)
+
+        # if there are two values, give the difference
+        if len(localCells) == 2:
+            maxGrowthRate=(localCells[1]-localCells[0])/(localTime[-1]-localTime[0])
+            growthLag = None
+            print 'calculated parameters based on two values', maxGrowthRate,growthLag
+
+        # if the last value is lower than the first, provide with the slope of a regression
+        elif localCells[0] > localCells[-1]:
+            slope, intercept, temp0, temp1, temp2 = scipy.stats.linregress(shiftedTime,localCells)
+            maxGrowthRate=slope
+            growthLag = None
+            print 'calculated parameters based on a decreasing time series',maxGrowthRate,growthLag
+
+        # calculate the fitted and the manual max growth. Give the manual if the difference is larger than 5 percent
+        else:
+            
+            fittedTrajectory = dataFitter(shiftedTime,localCells)
+            fittedMaxGrowthRate = fittedTrajectory[0][1]
+            manualMaxGrowthRate, manualGrowthLag = manualGrowthCalculator(shiftedTime, localCells)
+            ratio = fittedMaxGrowthRate/manualMaxGrowthRate
+            
+            if ratio > 2.:
+                maxGrowthRate = manualMaxGrowthRate
+                growthLag = manualGrowthLag
+                print 'calculated parameters based on discrete data points', maxGrowthRate, growthLag
+            else:
+                maxGrowthRate = fittedMaxGrowthRate
+                b=(peval(highResolutionTime,fittedTrajectory[0]))
+                z=numpy.diff(b,n=1)
+                thePosition=numpy.where(z == max(z))
+                growthLag=highResolutionTime[thePosition][0]
+                print 'calculated parameters based on fitted function', maxGrowthRate, growthLag
+
+        print
+                            
+        uvValues.append(uvValue)
+        maxGrowthRates.append(maxGrowthRate)
+        growthLags.append(growthLag)
+ 
+    return maxGrowthRates,uvValues,growthLags
 
 def dataReader(inputFile):
 
@@ -52,6 +112,29 @@ def logistic(x, A, B, C, D):
     deno=1+expfun
     
     return D+num/deno
+
+def manualGrowthCalculator(t,x):
+
+    # checking the sizes
+    if len(t) != len(x):
+        print len(t),len(x)
+        print 'manualGrowthCalculator needs vectors of the same size. Exiting...'
+        sys.exit()
+
+    # actual calculation
+    mus=[]
+    middlePoints = []
+    for i in range(len(t)-1):
+        
+        deltat=t[i+1]-t[i]
+        deltax=x[i+1]-x[i]
+        mu=deltax/deltat
+        mus.append(mu)
+        middlePoints.append(t[i] + (deltat)/2.)
+
+    lag=middlePoints[mus.index(max(mus))]
+
+    return max(mus), lag
 
 def peval(x, p):
     """Evaluated value at x with current parameters."""

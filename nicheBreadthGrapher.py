@@ -4,55 +4,6 @@ import sys, numpy, scipy, matplotlib
 import matplotlib.pyplot
 import library
 
-def maxGrowthCalculator(dataStructure):
-
-    resolution = 1000
-    maxGrowthRates = []
-    uvValues = []
-
-    for epocLabel in dataStructure:
-
-        epoc=epocLabel.split('_')[0]
-        uvValue=float(epoc)
-
-        print epocLabel,
-                
-        localTime=numpy.array(dataStructure[epocLabel][0])
-        shiftedTime=localTime-min(localTime)
-        localCells=dataStructure[epocLabel][1]
-        highResolutionTime=numpy.linspace(min(shiftedTime),max(shiftedTime),resolution)
-
-        # if there are two values, give the difference
-        if len(localCells) == 2:
-            maxGrowthRate=(localCells[1]-localCells[0])/(localTime[-1]-localTime[0])
-            print 'calculating max growth rate based on two values',maxGrowthRate
-
-        # if the last value is lower than the first, provide with the slope of a regression
-        elif localCells[0] > localCells[-1]:
-            slope, intercept, temp0, temp1, temp2 = scipy.stats.linregress(shiftedTime,localCells)
-            maxGrowthRate=slope
-            print 'calculating max growth rate based on a decreasing time series',maxGrowthRate
-
-        # calculate the fitted and the manual max growth. Give the manual if the difference is larger than 5 percent
-        else:
-            fittedTrajectory = library.dataFitter(shiftedTime,localCells)
-            fittedMaxGrowthRate = fittedTrajectory[0][1]
-            
-            manualMaxGrowthRate = library.manualGrowthCalculator(shiftedTime, localCells)
-
-            ratio = fittedMaxGrowthRate/manualMaxGrowthRate
-            if ratio > 2.:
-                maxGrowthRate = manualMaxGrowthRate
-                print 'correcting max growth rate to point differences based on large discrepancies.\n'
-            else:
-                maxGrowthRate = fittedMaxGrowthRate
-                            
-        #print
-        uvValues.append(uvValue)
-        maxGrowthRates.append(maxGrowthRate)
- 
-    return maxGrowthRates,uvValues
-
 ### MAIN
 
 # 1. data reading
@@ -61,11 +12,11 @@ data1000=library.dataReader('../data/1000ppmSet3.txt')
 
 # 2. calculating the max growth rates
 print 'fitting data for 300 pppm...'
-maxGrowthRates300,uvValues300=maxGrowthCalculator(data300)
+maxGrowthRates300, uvValues300, growthLag300 = library.characteristicParameterFinder(data300)
 
 print
 print 'fitting data for 1,000 pppm...'
-maxGrowthRates1000,uvValues1000=maxGrowthCalculator(data1000)
+maxGrowthRates1000, uvValues1000, growthLag1000 = library.characteristicParameterFinder(data1000)
 
 # 3. plotting
 print
